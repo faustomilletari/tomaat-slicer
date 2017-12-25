@@ -292,8 +292,11 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
     print 'CONNECTING TO SERVER {}'.format(self.serverUrl)
 
     progress_bar = slicer.util.createProgressDialog(labelText="Uploading to remote server", windowTitle="Uploading...")
+    progress_bar.setCancelButton(0)
 
-    elap_time, volumeNode = logic.run(self.inputSelector.currentNode(), self.imageThresholdSliderWidget.value, self.serverUrl, progress_bar)
+    elap_time, volumeNode = logic.run(
+      self.inputSelector.currentNode(), self.imageThresholdSliderWidget.value, self.serverUrl, progress_bar
+    )
 
     self.time.setText('Inference time: {} ms'.format(np.round(elap_time)))
 
