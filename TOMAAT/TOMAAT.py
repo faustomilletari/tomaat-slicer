@@ -30,7 +30,7 @@ import tempfile
 #
 
 
-module_version = 0.01
+module_version = 1
 
 
 class TOMAAT(ScriptedLoadableModule):
