@@ -332,7 +332,6 @@ def create_callback(encoder, progress_bar):
 
   def callback(monitor):
     progress_bar.value = float(monitor.bytes_read)/float(encoder_len) * 100
-    print progress_bar.value
 
   return callback
 
@@ -400,9 +399,13 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
     slicer.util.saveNode(inputVolume, tmp_filename_mha)
 
     message = {
-      'threshold': str(imageThreshold),
-      'module_version': str(module_version),
-      'mha_content': ('filename', open(tmp_filename_mha, 'rb'), 'text/plain')
+      'json': json.dumps(
+        {
+          'threshold': imageThreshold,
+          'module_version': module_version,
+        }
+      ),
+      'file': ('filename', open(tmp_filename_mha, 'rb'), 'text/plain')
     }
 
     encoder = MultipartEncoder(message)
@@ -412,8 +415,6 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
     monitor = MultipartEncoderMonitor(encoder, callback)
 
     response = requests.post(server_url, data=monitor, headers={'Content-Type': monitor.content_type})
-
-    print response
 
     print 'MESSAGE SENT'
 
