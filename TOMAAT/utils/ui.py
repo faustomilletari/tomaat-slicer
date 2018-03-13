@@ -49,12 +49,6 @@ def add_label(text):
     return label
 
 
-def volume_widget():
-    input_selector = slicer.qMRMLNodeComboBox()
-
-
-    return input_selector
-
 class ScalarVolumeWidget(slicer.qMRMLNodeComboBox):
     def __init__(self, destination):
         super(ScalarVolumeWidget, self).__init__()
@@ -86,11 +80,51 @@ class SliderWidget(ctk.ctkSliderWidget):
 
         self.type = 'SliderWidget'
 
-
-
         self.value = (float(maximum) - float(minimum)) / 2.0
 
         self.setToolTip('Set value')
+
+
+class CheckboxWidget(qt.QCheckBox):
+    def __init__(self, text, destination):
+        super(CheckboxWidget, self).__init__(text)
+
+        self.destination = destination
+        self.type = 'CheckboxWidget'
+
+        self.value = False
+
+        self.clicked.connect(self.updateValue)
+
+    def updateValue(self):
+        if self.isChecked():
+            self.value = True
+        else:
+            self.value = False
+
+
+class RadioButtonWidget(qt.QVBoxLayout):
+    def __init__(self, options, destination):
+        super(RadioButtonWidget, self).__init__()
+        for option in options:
+            radio = qt.QRadioButton(option)
+            radio.clicked.connect(self.updateValue(radio))
+            self.addWidget(radio)
+
+        self.destination = destination
+        self.type = 'RadioButtonWidget'
+
+        self.value = ''
+
+    def updateValue(self, radio):
+        def do_update():
+            self.value = radio.text
+        return do_update
+
+
+
+
+
 
 
 

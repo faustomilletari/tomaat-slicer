@@ -14,7 +14,7 @@ import utils.dependencies
 from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 from slicer.ScriptedLoadableModule import *
 
-from utils.ui import ScalarVolumeWidget, SliderWidget
+from utils.ui import ScalarVolumeWidget, SliderWidget, CheckboxWidget, RadioButtonWidget
 from utils.ui import collapsible_button, add_image, add_textbox, add_button, add_label
 
 #
@@ -162,6 +162,22 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
         self.widgets.append(slider)
         self.processingFormLayout.addRow('{} Slider: '.format(instruction['destination']), slider)
 
+      if instruction['type'] == 'checkbox':
+        checkbox = CheckboxWidget(
+          destination=instruction['destination'],
+          text=instruction['text']
+        )
+        self.widgets.append(checkbox)
+        self.processingFormLayout.addRow('{} Checkbox: '.format(instruction['destination']), checkbox)
+
+      if instruction['type'] == 'radiobutton':
+        radiobox = RadioButtonWidget(
+          destination=instruction['destination'],
+          options=instruction['options']
+        )
+        self.widgets.append(radiobox)
+        self.processingFormLayout.addRow('{} Options: '.format(instruction['text']), radiobox)
+
     self.applyButton = add_button('Process', 'Run the algorithm', enabled=True)
 
     self.processingFormLayout.addRow(self.applyButton)
@@ -208,13 +224,13 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
 
         mod_item.addChild(anatom_item)
 
-        for dimensionality in data[modality][anatomy].keys():
+        for task in data[modality][anatomy].keys():
           dim_item = qt.QTreeWidgetItem()
-          dim_item.setText(0, 'Dimensionality: ' + str(dimensionality))
+          dim_item.setText(0, 'Task: ' + str(task))
 
           anatom_item.addChild(dim_item)
 
-          for entry in data[modality][anatomy][dimensionality]:
+          for entry in data[modality][anatomy][task]:
             elem = ServiceEntry()
             elem.setText(0, 'Service: ' + entry['name'] + '. Sid:' + entry['SID'])
             elem.endpoint_data = entry
@@ -334,6 +350,12 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
   def add_slider_value_to_message(self, widget):
     self.message[widget.destination] = str(widget.value)
 
+  def add_checkbox_value_to_message(self, widget):
+    self.message[widget.destination] = str(widget.value)
+
+  def add_radiobutton_value_to_message(self, widget):
+    self.message[widget.destination] = str(widget.value)
+
   def receive_label_volume(self, data):
     tmp_segmentation_mha = os.path.join(self.savepath,  self.node_name + '_result'+ '.mha')
     with open(tmp_segmentation_mha, 'wb') as f:
@@ -381,6 +403,12 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
 
       if widget.type == 'SliderWidget':
         self.add_slider_value_to_message(widget)
+
+      if widget.type == 'CheckboxWidget':
+        self.add_checkbox_value_to_message(widget)
+
+      if widget.type == 'RadioButtonWidget':
+        self.add_radiobutton_value_to_message(widget)
 
     encoder = MultipartEncoder(self.message)
     progress_bar.open()
@@ -430,10 +458,10 @@ class ServiceDiscoveryLogic(ScriptedLoadableModuleLogic):
       data[service['modality']][service['anatomy']] = {}
 
     for service in service_list:
-      data[service['modality']][service['anatomy']][service['dimensionality']] = []
+      data[service['modality']][service['anatomy']][service['task']] = []
 
     for service in service_list:
-      data[service['modality']][service['anatomy']][service['dimensionality']].append(service)
+      data[service['modality']][service['anatomy']][service['task']].append(service)
 
     print data
 
