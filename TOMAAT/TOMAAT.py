@@ -140,6 +140,9 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
     # Add vertical spacer
     self.layout.addStretch(1)
 
+  def cleanup(self):
+    pass
+
   def add_widgets(self, instructions):
 
     def clearLayout(layout):
@@ -175,9 +178,6 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
 
     # connections
     self.applyButton.connect('clicked(bool)', self.onApplyButton)
-
-  def cleanup(self):
-    pass
 
   def select_from_textbox(self):
     print 'USING HOST IN DIRECT CONNECTION PANE'
@@ -402,24 +402,21 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
 
     print 'MESSAGE SENT'
 
-    response_json = reply.json()
+    responses_json = reply.json()
 
     print 'RESPONSE RECEIVED'
 
-    descriptions = response_json['descriptions']
-    responses = response_json['responses']
-
-    for description, response in zip(descriptions, responses):
-      if description['type'] == 'LabelVolume':
+    for response in responses_json:
+      if response['type'] == 'LabelVolume':
         self.receive_label_volume(response)
 
-      if description['type'] == 'VTKMesh':
+      if response['type'] == 'VTKMesh':
         self.receive_vtk_mesh(response)
 
-      if description['type'] == 'Fiducials':
+      if response['type'] == 'Fiducials':
         self.receive_fiducials(response)
 
-      if description['type'] == 'PlainText':
+      if response['type'] == 'PlainText':
         self.receive_plain_text(response)
 
     return

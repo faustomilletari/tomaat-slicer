@@ -78,13 +78,18 @@ class SliderWidget(ctk.ctkSliderWidget):
     def __init__(self, minimum, maximum, destination):
         super(SliderWidget, self).__init__()
 
+        self.singleStep = (float(maximum) - float(minimum)) / 200.0
+
         self.minimum = minimum
         self.maximum = maximum
         self.destination = destination
 
         self.type = 'SliderWidget'
 
-        self.value = float(maximum - minimum) / float(2)
+
+
+        self.value = (float(maximum) - float(minimum)) / 2.0
+
         self.setToolTip('Set value')
 
 
