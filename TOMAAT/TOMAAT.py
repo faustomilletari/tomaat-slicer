@@ -85,7 +85,8 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
     self.layout.addWidget(logoCollapsibleButton)
     self.logolayout = qt.QFormLayout(logoCollapsibleButton)
 
-    self.logolabel, _ = add_image("Resources/Icons/TOMAAT.png")
+    self.logolabel, _ = \
+      add_image(os.path.join(os.path.split(os.path.realpath(__file__))[0], "Resources/Icons/TOMAAT_INFO.png"))
 
     self.logolayout.addRow(self.logolabel)
 

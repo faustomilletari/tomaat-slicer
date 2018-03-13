@@ -15,8 +15,9 @@ def collapsible_button(name):
 def add_image(path):
     logo_label = qt.QLabel()
     logo_label.setAlignment(4)
+    print('loading')
     logo_pixmap = \
-        qt.QPixmap(os.path.join(os.path.split(os.path.realpath(__file__))[0], path))
+        qt.QPixmap(path)
     logo_label.setPixmap(logo_pixmap)
 
     return logo_label, logo_pixmap
