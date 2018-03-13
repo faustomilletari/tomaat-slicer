@@ -37,18 +37,16 @@ MESSAGE = \
     You are responsible for the anonimization of the data you use to run inference. 
   """
 
-module_version = 1
-
 
 class ServiceEntry(qt.QTreeWidgetItem):
   endpoint_data = None
 
 
-class TOMAAT(ScriptedLoadableModule):
-  """Uses ScriptedLoadableModule base class, available at:
-  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-  """
+#
+# TOMAAT
+#
 
+class TOMAAT(ScriptedLoadableModule):
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
     self.parent.title = "TOMAAT"
@@ -59,16 +57,12 @@ class TOMAAT(ScriptedLoadableModule):
     self.parent.helpText += self.getDefaultModuleDocumentationLink()
     self.parent.acknowledgementText = ""
 
+
 #
 # TOMAATWidget
 #
 
-
 class TOMAATWidget(ScriptedLoadableModuleWidget):
-  """Uses ScriptedLoadableModuleWidget base class, available at:
-  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-  """
-
   def setup(self):
     ScriptedLoadableModuleWidget.setup(self)
 
@@ -374,10 +368,19 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
     threeDView.resetFocalPoint()
 
   def receive_vtk_mesh(self, data):
-    pass
+    tmp_mesh_vtk = os.path.join(self.savepath, self.node_name + '_mesh' + '.vtk')
+    with open(tmp_mesh_vtk, 'wb') as f:
+      f.write(base64.decodestring(data['content']))
+    slicer.util.loadNodeFromFile(tmp_mesh_vtk)
+
+  def receive_fiducials(self, data):
+    tmp_fiducials_fcsv = os.path.join(self.savepath, self.node_name + '_fiducials' + '.fcsv')
+    with open(tmp_fiducials_fcsv, 'wb') as f:
+      f.write(base64.decodestring(data['content']))
+    slicer.util.loadFiducialList(tmp_fiducials_fcsv)
 
   def receive_plain_text(self, data):
-    pass
+    slicer.util.messageBox(data['content'])
 
   def run(self, widgets, server_url, progress_bar):
     logging.info('Processing started')
@@ -412,6 +415,9 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
 
       if description['type'] == 'VTKMesh':
         self.receive_vtk_mesh(response)
+
+      if description['type'] == 'Fiducials':
+        self.receive_fiducials(response)
 
       if description['type'] == 'PlainText':
         self.receive_plain_text(response)
