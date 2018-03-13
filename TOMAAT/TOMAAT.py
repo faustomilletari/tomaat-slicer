@@ -128,32 +128,22 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
 
     self.managedConnectionLayout.addRow(self.serviceDescription)
 
-    #
-    # Processing Area
-    #
-    processingCollapsibleButton = ctk.ctkCollapsibleButton()
-    processingCollapsibleButton.text = "Processing"
-    self.layout.addWidget(processingCollapsibleButton)
-
-    self.processingFormLayout = qt.QFormLayout(processingCollapsibleButton)
-
-    # Add vertical spacer
-    self.layout.addStretch(1)
+    self.processingCollapsibleButton = None
 
   def cleanup(self):
     pass
 
   def add_widgets(self, instructions):
+    if self.processingCollapsibleButton is not None:
+      self.processingCollapsibleButton.deleteLater()
+    self.processingCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.processingCollapsibleButton.text = "Processing"
+    self.layout.addWidget(self.processingCollapsibleButton)
 
-    def clearLayout(layout):
-      while layout.count():
-        child = layout.takeAt(0)
-        if child.widget() is not None:
-          child.widget().deleteLater()
-        elif child.layout() is not None:
-          clearLayout(child.layout())
+    self.processingFormLayout = qt.QFormLayout(self.processingCollapsibleButton)
 
-    clearLayout(self.processingFormLayout)
+    # Add vertical spacer
+    self.layout.addStretch(1)
 
     self.widgets = []
 
