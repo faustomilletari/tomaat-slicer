@@ -106,15 +106,19 @@ class CheckboxWidget(qt.QCheckBox):
 class RadioButtonWidget(qt.QVBoxLayout):
     def __init__(self, options, destination):
         super(RadioButtonWidget, self).__init__()
-        for option in options:
+
+        for i, option in enumerate(options):
             radio = qt.QRadioButton(option)
             radio.clicked.connect(self.updateValue(radio))
+            
+            if i == 0:
+                radio.setChecked(True)
+                self.value = option
+
             self.addWidget(radio)
 
         self.destination = destination
         self.type = 'RadioButtonWidget'
-
-        self.value = ''
 
     def updateValue(self, radio):
         def do_update():

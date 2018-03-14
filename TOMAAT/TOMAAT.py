@@ -380,19 +380,19 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
     threeDView.resetFocalPoint()
 
   def receive_vtk_mesh(self, data):
-    tmp_mesh_vtk = os.path.join(self.savepath, self.node_name + '_mesh' + '.vtk')
+    tmp_mesh_vtk = os.path.join(self.savepath, self.node_name + data['label'] + '_mesh' + '.vtk')
     with open(tmp_mesh_vtk, 'wb') as f:
       f.write(base64.decodestring(data['content']))
-    slicer.util.loadNodeFromFile(tmp_mesh_vtk)
+    slicer.util.loadModel(tmp_mesh_vtk)
 
   def receive_fiducials(self, data):
-    tmp_fiducials_fcsv = os.path.join(self.savepath, self.node_name + '_fiducials' + '.fcsv')
+    tmp_fiducials_fcsv = os.path.join(self.savepath, self.node_name + data['label'] + '_fiducials' + '.fcsv')
     with open(tmp_fiducials_fcsv, 'wb') as f:
       f.write(base64.decodestring(data['content']))
     slicer.util.loadFiducialList(tmp_fiducials_fcsv)
 
   def receive_plain_text(self, data):
-    slicer.util.messageBox(data['content'])
+    slicer.util.messageBox(data['content'], windowTitle=data['label'])
 
   def run(self, widgets, server_url, progress_bar):
     logging.info('Processing started')
