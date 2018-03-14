@@ -17,6 +17,10 @@ from slicer.ScriptedLoadableModule import *
 from utils.ui import ScalarVolumeWidget, SliderWidget, CheckboxWidget, RadioButtonWidget
 from utils.ui import collapsible_button, add_image, add_textbox, add_button, add_label
 
+
+MODULE_VERSION = 'Slicer-v2'
+
+
 #
 # TOMAAT
 #
@@ -415,6 +419,8 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
 
       if widget.type == 'RadioButtonWidget':
         self.add_radiobutton_value_to_message(widget)
+
+    self.message['module_version'] = MODULE_VERSION
 
     encoder = MultipartEncoder(self.message)
     progress_bar.open()
