@@ -323,6 +323,8 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
   savepath = tempfile.gettempdir()
   node_name = None
 
+  list_files_cleanup = []
+
   def add_scalar_volume_to_message(self, widget):
     id = uuid.uuid4()
     tmp_filename_mha = os.path.join(self.savepath, str(id) + '.mha')
@@ -346,6 +348,8 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
     sliceLogic = sliceWidget.sliceLogic()
     sliceNode = sliceLogic.GetSliceNode()
     sliceNode.SetSliceVisible(True)
+
+    self.list_files_cleanup.append(tmp_filename_mha)
 
   def add_slider_value_to_message(self, widget):
     self.message[widget.destination] = str(widget.value)
@@ -384,6 +388,8 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
     with open(tmp_mesh_vtk, 'wb') as f:
       f.write(base64.decodestring(data['content']))
     slicer.util.loadModel(tmp_mesh_vtk)
+
+    os.remove(tmp_mesh_vtk)
 
   def receive_fiducials(self, data):
     tmp_fiducials_fcsv = os.path.join(self.savepath, self.node_name + data['label'] + '_fiducials' + '.fcsv')
@@ -437,8 +443,12 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
       if response['type'] == 'PlainText':
         self.receive_plain_text(response)
 
+    self.cleanup()
     return
 
+  def cleanup(self):
+    for file in self.list_files_cleanup:
+      os.remove(file)
 
 #
 # ServiceDiscoveryLogic
