@@ -450,6 +450,9 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
         self.receive_plain_text(response)
 
     self.cleanup()
+
+    print 'DONE'
+    
     return
 
   def cleanup(self):
