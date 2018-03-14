@@ -110,7 +110,7 @@ class RadioButtonWidget(qt.QVBoxLayout):
         for i, option in enumerate(options):
             radio = qt.QRadioButton(option)
             radio.clicked.connect(self.updateValue(radio))
-            
+
             if i == 0:
                 radio.setChecked(True)
                 self.value = option
