@@ -1,3 +1,5 @@
+import utils.dependencies
+
 import base64
 import logging
 import os
@@ -8,8 +10,6 @@ import ctk
 import qt
 import requests
 import slicer
-
-import utils.dependencies
 
 from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 from slicer.ScriptedLoadableModule import *
