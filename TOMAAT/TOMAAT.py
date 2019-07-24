@@ -207,8 +207,7 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
         self.applyButton.connect('clicked(bool)', self.onApplyButton)
 
     def select_from_textbox(self):
-        print
-        'USING HOST IN DIRECT CONNECTION PANE'
+        print('USING HOST IN DIRECT CONNECTION PANE')
         self.predictionUrl = self.urlBoxDirectConnection.text + '/predict'
         self.interfaceUrl = self.urlBoxDirectConnection.text + '/interface'
         self.serviceDescription.setText('')
@@ -248,19 +247,19 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
         except:
             slicer.util.messageBox("Error during service discovery")
 
-        for modality in data.keys():
+        for modality in list(data.keys()):
             mod_item = qt.QTreeWidgetItem()
             mod_item.setText(0, 'Modality: ' + str(modality))
 
             self.serviceTree.addTopLevelItem(mod_item)
 
-            for anatomy in data[modality].keys():
+            for anatomy in list(data[modality].keys()):
                 anatom_item = qt.QTreeWidgetItem()
                 anatom_item.setText(0, 'Anatomy: ' + str(anatomy))
 
                 mod_item.addChild(anatom_item)
 
-                for task in data[modality][anatomy].keys():
+                for task in list(data[modality][anatomy].keys()):
                     dim_item = qt.QTreeWidgetItem()
                     dim_item.setText(0, 'Task: ' + str(task))
 
@@ -331,8 +330,7 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
 
         self.clearToSendMsg = False
 
-        print
-        'CONNECTING TO SERVER {}'.format(self.predictionUrl)
+        print('CONNECTING TO SERVER {}'.format(self.predictionUrl))
 
         progress_bar = slicer.util.createProgressDialog(labelText="Uploading to remote server",
                                                         windowTitle="Uploading...")
@@ -427,7 +425,7 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
 
         trf_message = dtype[transformType][1:] + "\n"
         with open(tmp_transform, 'rb') as trfdata:
-            trf_message += base64.encodestring(trfdata.read())
+            trf_message += base64.encodebytes(trfdata.read())
 
         self.message[widget.destination] = trf_message
 
@@ -445,7 +443,7 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
     def receive_label_volume(self, data):
         tmp_segmentation_mha = os.path.join(self.savepath, self.node_name + '_result' + '.mha')
         with open(tmp_segmentation_mha, 'wb') as f:
-            f.write(base64.decodestring(data['content']))
+            f.write(base64.decodebytes(data['content'].encode("ascii")))
 
         success, node = slicer.util.loadLabelVolume(tmp_segmentation_mha, properties={'show': False}, returnNode=True)
 
@@ -482,7 +480,7 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
     def receive_vtk_mesh(self, data):
         tmp_mesh_vtk = os.path.join(self.savepath, self.node_name + data['label'] + '_mesh' + '.vtk')
         with open(tmp_mesh_vtk, 'wb') as f:
-            f.write(base64.decodestring(data['content']))
+            f.write(base64.decodebytes(data['content'].encode("ascii")))
         slicer.util.loadModel(tmp_mesh_vtk)
 
         os.remove(tmp_mesh_vtk)
@@ -490,7 +488,7 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
     def receive_fiducials(self, data):
         tmp_fiducials_fcsv = os.path.join(self.savepath, self.node_name + data['label'] + '_fiducials' + '.fcsv')
         with open(tmp_fiducials_fcsv, 'wb') as f:
-            f.write(base64.decodestring(data['content']))
+            f.write(base64.decodebytes(data['content']).encode("ascii"))
         slicer.util.loadMarkupsFiducialList(tmp_fiducials_fcsv)
 
     def receive_transform(self, data, transformType):
@@ -504,7 +502,7 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
         }
         tmp_transform = os.path.join(self.savepath, self.node_name + '_result' + dtype[transformType])
         with open(tmp_transform, 'wb') as f:
-            f.write(base64.decodestring(data['content']))
+            f.write(base64.decodebytes(data['content'].encode("ascii")))
 
         success, node = slicer.util.loadTransform(tmp_transform, returnNode=True)
         os.remove(tmp_transform)
@@ -518,8 +516,7 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
         delayed_url = server_url.replace('/predict', '/responses')
 
         def check_response():
-            print
-            'TRYING TO OBTAIN DELAYED RESPONSE'
+            print('TRYING TO OBTAIN DELAYED RESPONSE')
             reply = requests.post(delayed_url, data={'request_id': data['request_id']}, timeout=5.0)
             responses_json = reply.json()
             self.process_responses(responses_json, server_url)
@@ -586,18 +583,15 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
 
         reply = requests.post(server_url, data=monitor, headers={'Content-Type': monitor.content_type})
 
-        print
-        'MESSAGE SENT'
+        print('MESSAGE SENT')
 
         responses_json = reply.json()
 
-        print
-        'RESPONSE RECEIVED'
+        print('RESPONSE RECEIVED')
 
         self.process_responses(responses_json, server_url)
 
-        print
-        'DONE'
+        print('DONE')
 
         return
 
@@ -631,8 +625,7 @@ class ServiceDiscoveryLogic(ScriptedLoadableModuleLogic):
         for service in service_list:
             data[service['modality']][service['anatomy']][service['task']].append(service)
 
-        print
-        data
+        print(data)
 
         return data
 
