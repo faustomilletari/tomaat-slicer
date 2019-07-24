@@ -1,4 +1,4 @@
-import utils.dependencies
+from utils import dependencies as tomaatdependencies
 
 import base64
 import logging

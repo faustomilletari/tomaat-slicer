@@ -1,14 +1,9 @@
-# import pip main
-try:
-    from pip import main as pipmain
-except:
-    from pip._internal import main as pipmain
-
+import slicer
 # install requests
 try:
   import requests
 except:
-  pipmain(['install','requests'])
+  slicer.util.pip_install('requests')
   import requests
   pass
 
@@ -16,6 +11,6 @@ except:
 try:
   from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 except:
-  pipmain(['install', 'requests_toolbelt'])
+  slicer.util.pip_install('requests_toolbelt')
   from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
   pass
