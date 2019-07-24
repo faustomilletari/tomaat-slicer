@@ -14,3 +14,11 @@ except:
   slicer.util.pip_install('requests_toolbelt')
   from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
   pass
+
+# install OpenSSL
+try:
+  import OpenSSL
+except:
+  slicer.util.pip_install('pyOpenSSL')
+  import OpenSSL
+  pass
