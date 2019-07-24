@@ -10,6 +10,7 @@ import ctk
 import qt
 import requests
 import slicer
+import json
 
 from qt import QTimer
 
@@ -19,6 +20,7 @@ from slicer.ScriptedLoadableModule import *
 from utils.ui import ScalarVolumeWidget, MarkupsFiducialWidget, TransformWidget, SliderWidget, CheckboxWidget, \
     RadioButtonWidget
 from utils.ui import collapsible_button, add_image, add_textbox, add_button, add_label
+from utils.tls import SSLUtil
 
 MODULE_VERSION = 'Slicer-v2'
 
@@ -96,7 +98,7 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
         self.layout.addWidget(directConnectionCollapsibleButton)
         self.directConnectionLayout = qt.QFormLayout(directConnectionCollapsibleButton)
 
-        self.urlBoxDirectConnection = add_textbox("http://localhost:9000")
+        self.urlBoxDirectConnection = add_textbox("https://localhost:9000")
 
         self.urlBoxButton = add_button(
             text='Confirm', tooltip_text='Confirm entry', click_function=self.select_from_textbox, enabled=True
@@ -213,12 +215,16 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
         self.serviceDescription.setText('')
 
         logic = InterfaceDiscoveryLogic()
+
+        if not self.checkConnection(self.interfaceUrl):
+            return
+
         try:
             interface_specification = logic.run(self.interfaceUrl)
+            self.add_widgets(interface_specification)
         except:
             slicer.util.messageBox("Error during interface discovery")
-
-        self.add_widgets(interface_specification)
+            return
 
     def select_from_tree(self):
         item = self.serviceTree.selectedItems()
@@ -230,6 +236,10 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
             self.serviceDescription.setText(item.endpoint_data['description'])
 
         logic = InterfaceDiscoveryLogic()
+
+        if not self.checkConnection(self.interfaceUrl):
+            return
+
         try:
             interface_specification = logic.run(self.interfaceUrl)
             self.add_widgets(interface_specification)
@@ -246,6 +256,7 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
             data = logic.run(self.urlBoxManagedConnection.text)
         except:
             slicer.util.messageBox("Error during service discovery")
+            return
 
         for modality in list(data.keys()):
             mod_item = qt.QTreeWidgetItem()
@@ -277,7 +288,7 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
         self.removeListGuiReset = []
 
         self.urlBoxDirectConnection = qt.QLineEdit()
-        self.urlBoxDirectConnection.text = "http://localhost:9000"
+        self.urlBoxDirectConnection.text = "https://localhost:9000"
         self.connectionFormLayout.addRow("Server URL: ", self.urlBoxDirectConnection)
 
         self.removeListGuiReset += [self.urlBoxDirectConnection]
@@ -328,6 +339,10 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
             logging.info('USER REQUESTED STOP')
             return
 
+        if not self.checkConnection(self.predictionUrl):
+            logging.info('UNSAFE CONNECTION STOP')
+            return
+
         self.clearToSendMsg = False
 
         print('CONNECTING TO SERVER {}'.format(self.predictionUrl))
@@ -340,6 +355,29 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
             logic.run(self.widgets, self.predictionUrl, progress_bar)
         except:
             slicer.util.messageBox("Error during remote processing")
+
+    def checkConnection(self, url):
+        logic = TOMAATLogic()
+        result = logic.verifyConnectionToServer(url)
+        if not result["success"]:
+            if "fingerprint" in result.keys():
+                # untrusted host -> ask to add to keystore
+                if slicer.util.confirmYesNoDisplay(
+                        "{}\nDo you want to consider the following data as trusted in the future:\n{}".format(result['msg'], str(
+                            result['fingerprint']))
+                ):
+                    host, port, fprint = result['fingerprint']
+                    # write to SSLUtil
+                    SSLUtil.fingerprintsLocal.update({fprint: {"port": port, "host": host}})
+                    logic.writeFingerprintFile()
+                    return True
+                return False
+
+            else:
+                # no connection to host
+                slicer.util.errorDisplay(result["msg"])
+                return False
+        return True
 
 
 def create_callback(encoder, progress_bar):
@@ -359,6 +397,9 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
     message = {}
     savepath = tempfile.gettempdir()
     node_name = None
+    fingerprint_file = os.path.join(os.path.dirname(__file__), "known_hosts.json")
+    if os.path.exists(fingerprint_file):
+        SSLUtil.loadFingerprintsFromFile(fingerprint_file)
 
     list_files_cleanup = []
 
@@ -517,7 +558,7 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
 
         def check_response():
             print('TRYING TO OBTAIN DELAYED RESPONSE')
-            reply = requests.post(delayed_url, data={'request_id': data['request_id']}, timeout=5.0)
+            reply = SSLUtil.post(delayed_url, data={'request_id': data['request_id']}, timeout=5.0)
             responses_json = reply.json()
             self.process_responses(responses_json, server_url)
 
@@ -581,7 +622,7 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
 
         monitor = MultipartEncoderMonitor(encoder, callback)
 
-        reply = requests.post(server_url, data=monitor, headers={'Content-Type': monitor.content_type})
+        reply = SSLUtil.post(server_url, data=monitor, headers={'Content-Type': monitor.content_type})
 
         print('MESSAGE SENT')
 
@@ -600,6 +641,46 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
             if os.path.isfile(file):
                 os.remove(file)
         self.list_files_cleanup = []
+
+    def verifyConnectionToServer(self, server_url):
+        from urllib.parse import urlparse
+        res = urlparse(server_url)
+        if res.scheme != "https":
+            return {"success": False, "msg": "No HTTPS connection!"}
+
+        # try to connect to interface
+        url = "https://" + str(res.hostname)
+        if res.port:
+            url += ":" + str(res.port)
+        url += "/interface"
+
+        success_safe = True
+        success_unsafe = True
+        # test verified connection
+        try:
+            SSLUtil.get(url)
+        except:
+            success_safe = False
+
+        if not success_safe:
+            # test unverified connection
+            try:
+                SSLUtil.get(url, allow_mitm=True)
+            except:
+                success_unsafe = False
+
+        if success_safe and success_unsafe:
+            return {"success": True, "msg": "Connection successful!"}
+        if success_unsafe and not success_safe:
+            # No trusted connection
+            fp = SSLUtil.requestFingerprintFromURL(url)
+            return {"success": False, "msg": "Untrusted connection! The request was cancelled!", "fingerprint": fp}
+        if not success_unsafe:
+            return {"success": False, "msg": "Host is not reachable! ({})".format(url)}
+
+    def writeFingerprintFile(self):
+        with open(self.fingerprint_file, "w", encoding="utf-8") as f:
+            json.dump(SSLUtil.fingerprintsLocal, f)
 
 
 #
