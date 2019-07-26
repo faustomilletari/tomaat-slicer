@@ -7,6 +7,7 @@ set(MODULE_PYTHON_SCRIPTS
   utils/dependencies.py
   utils/ui.py
   utils/tls.py
+  utils/__init__.py
   )
 
 set(MODULE_PYTHON_RESOURCES
