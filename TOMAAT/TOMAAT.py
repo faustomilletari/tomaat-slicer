@@ -11,6 +11,8 @@ import qt
 import requests
 import slicer
 import json
+import sys
+import numpy as np
 
 from qt import QTimer
 
@@ -351,10 +353,10 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
                                                         windowTitle="Uploading...")
         progress_bar.setCancelButton(0)
 
-        try:
-            logic.run(self.widgets, self.predictionUrl, progress_bar)
-        except:
-            slicer.util.messageBox("Error during remote processing")
+        #try:
+        logic.run(self.widgets, self.predictionUrl, progress_bar)
+        #except Exception as e:
+        #    slicer.util.messageBox("Error during remote processing")
 
     def checkConnection(self, url):
         logic = TOMAATLogic()
@@ -403,6 +405,7 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
 
     list_files_cleanup = []
 
+
     def add_scalar_volume_to_message(self, widget):
         id = uuid.uuid4()
         tmp_filename_mha = os.path.join(self.savepath, str(id) + '.mha')
@@ -410,7 +413,8 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
 
         self.node_name = widget.currentNode().GetName()
 
-        self.message[widget.destination] = ('filename', open(tmp_filename_mha, 'rb'), 'text/plain')
+        with open(tmp_filename_mha, 'rb') as voldata:
+            self.message[widget.destination] = __base64_encode__(voldata.read())
 
         for view in ['Red', 'Green', 'Yellow']:
             view_widget = slicer.app.layoutManager().sliceWidget(view)
@@ -431,9 +435,11 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
 
     def add_fiducial_list_to_message(self, widget):
         fidsl = widget.currentNode()
-        coordsList = [[0., 0., 0.]] * fidsl.GetNumberOfFiducials()
+        coordsList = np.zeros(shape=(fidsl.GetNumberOfFiducials(),3))
+        coord = [ 0., 0., 0.]
         for i in range(fidsl.GetNumberOfFiducials()):
-            fidsl.GetNthFiducialPosition(i, coordsList[i])
+            fidsl.GetNthFiducialPosition(i, coord)
+            coordsList[i,:] = coord
         # point format: 0.243534,0.111,9584.0;0.1,0.2,0.3;...
         result = ";".join([",".join([str(c) for c in coords]) for coords in coordsList])
         self.message[widget.destination] = result
@@ -466,7 +472,7 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
 
         trf_message = dtype[transformType][1:] + "\n"
         with open(tmp_transform, 'rb') as trfdata:
-            trf_message += base64.encodebytes(trfdata.read())
+            trf_message += __base64_encode__(trfdata.read())
 
         self.message[widget.destination] = trf_message
 
@@ -482,11 +488,15 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
         self.message[widget.destination] = str(widget.value)
 
     def receive_label_volume(self, data):
-        tmp_segmentation_mha = os.path.join(self.savepath, self.node_name + '_result' + '.mha')
+        tmp_segmentation_mha = os.path.join(self.savepath, data['label']+'_result' + '.mha')
         with open(tmp_segmentation_mha, 'wb') as f:
-            f.write(base64.decodebytes(data['content'].encode("ascii")))
+            f.write(__base64_decode__( data['content'] ))
 
-        success, node = slicer.util.loadLabelVolume(tmp_segmentation_mha, properties={'show': False}, returnNode=True)
+        if sys.version_info.major == 2:
+            # returnNode is deprecated in newer Slicer versions
+            success, node = slicer.util.loadLabelVolume(tmp_segmentation_mha, properties={'show': False}, returnNode=True)
+        else:
+            node = slicer.util.loadLabelVolume(tmp_segmentation_mha, properties={'show': False})
 
         os.remove(tmp_segmentation_mha)
 
@@ -519,17 +529,28 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
         sliceNode.SetSliceVisible(True)
 
     def receive_vtk_mesh(self, data):
-        tmp_mesh_vtk = os.path.join(self.savepath, self.node_name + data['label'] + '_mesh' + '.vtk')
+        tmp_mesh_vtk = os.path.join(self.savepath, str(uuid.uuid4()) + '_mesh' + '.vtk')
         with open(tmp_mesh_vtk, 'wb') as f:
-            f.write(base64.decodebytes(data['content'].encode("ascii")))
+            f.write(__base64_decode__( data['content'] ))
         slicer.util.loadModel(tmp_mesh_vtk)
 
         os.remove(tmp_mesh_vtk)
 
     def receive_fiducials(self, data):
-        tmp_fiducials_fcsv = os.path.join(self.savepath, self.node_name + data['label'] + '_fiducials' + '.fcsv')
+        tmp_fiducials_fcsv = os.path.join(self.savepath, str(uuid.uuid4()) + '_fiducials' + '.fcsv')
+        pointData = data
+        if isinstance(pointData,bytes):
+            pointData = pointData.decode("utf-8")
+        prefix = """
+# Markups fiducial file version = 4.9
+# CoordinateSystem = 0
+# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID"""
         with open(tmp_fiducials_fcsv, 'wb') as f:
-            f.write(base64.decodebytes(data['content']).encode("ascii"))
+            f.write(prefix.encode("utf-8"))
+            for i,row in enumerate(data['content'].split(";")):
+                x,y,z = row.split(",")
+                f.write("\n{},{},{},{},0,0,0,1,1,1,0,{},,".format("Fid-ID"+str(i),x,y,z,"Fid-"+str(i+1)).encode("utf-8"))
+
         slicer.util.loadMarkupsFiducialList(tmp_fiducials_fcsv)
 
     def receive_transform(self, data, transformType):
@@ -543,9 +564,14 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
         }
         tmp_transform = os.path.join(self.savepath, self.node_name + '_result' + dtype[transformType])
         with open(tmp_transform, 'wb') as f:
-            f.write(base64.decodebytes(data['content'].encode("ascii")))
+            f.write(__base64_decode__( data['content'] ))
 
-        success, node = slicer.util.loadTransform(tmp_transform, returnNode=True)
+        if sys.version_info.major == 2:
+            # returnNode is deprecated in newer Slicer versions
+            success, node = slicer.util.loadTransform(tmp_transform, returnNode=True)
+        else:
+            node = slicer.util.loadTransform(tmp_transform)
+
         os.remove(tmp_transform)
 
     def receive_plain_text(self, data):
@@ -643,7 +669,10 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
         self.list_files_cleanup = []
 
     def verifyConnectionToServer(self, server_url):
-        from urllib.parse import urlparse
+        if sys.version_info.major == 2:
+            from urlparse import urlparse
+        else:
+            from urllib.parse import urlparse
         res = urlparse(server_url)
         if res.scheme != "https":
             return {"success": False, "msg": "No HTTPS connection!"}
@@ -679,8 +708,12 @@ class TOMAATLogic(ScriptedLoadableModuleLogic):
             return {"success": False, "msg": "Host is not reachable! ({})".format(url)}
 
     def writeFingerprintFile(self):
-        with open(self.fingerprint_file, "w", encoding="utf-8") as f:
-            json.dump(SSLUtil.fingerprintsLocal, f)
+        if sys.version_info.major == 2:
+            with open(self.fingerprint_file, "wb") as f:
+                json.dump(SSLUtil.fingerprintsLocal, f)
+        else:
+            with open(self.fingerprint_file, "w", encoding="utf-8") as f:
+                json.dump(SSLUtil.fingerprintsLocal, f)
 
 
 #
@@ -717,7 +750,20 @@ class ServiceDiscoveryLogic(ScriptedLoadableModuleLogic):
 
 class InterfaceDiscoveryLogic(ScriptedLoadableModuleLogic):
     def run(self, server_url):
-        response = requests.get(server_url, timeout=5.0)
+        response = SSLUtil.get(server_url, timeout=5.0)
         interface = response.json()
 
         return interface
+
+# base64 utils
+def __base64_decode__(data_in):
+    if sys.version_info.major == 2:
+        return base64.decodestring(data_in)
+    else:
+        return base64.decodebytes(data_in.encode("ascii"))
+
+def __base64_encode__(data_in):
+    if sys.version_info.major == 2:
+        return base64.encodestring(data_in)
+    else:
+        return base64.encodebytes(data_in).decode("ascii")
