@@ -353,10 +353,10 @@ class TOMAATWidget(ScriptedLoadableModuleWidget):
                                                         windowTitle="Uploading...")
         progress_bar.setCancelButton(0)
 
-        #try:
-        logic.run(self.widgets, self.predictionUrl, progress_bar)
-        #except Exception as e:
-        #    slicer.util.messageBox("Error during remote processing")
+        try:
+            logic.run(self.widgets, self.predictionUrl, progress_bar)
+        except Exception as e:
+            slicer.util.messageBox("Error during remote processing")
 
     def checkConnection(self, url):
         logic = TOMAATLogic()
