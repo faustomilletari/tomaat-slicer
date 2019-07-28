@@ -1,9 +1,22 @@
-import slicer
+import sys
+
+if sys.version_info.major == 2:
+  # import pip main
+  try:
+    from pip import main as pipmain
+  except:
+    from pip._internal import main as pipmain
+  pip_install = lambda module: pipmain(['install',module])
+
+else:
+  import slicer
+  pip_install = slicer.util.pip_install
+
 # install requests
 try:
   import requests
 except:
-  slicer.util.pip_install('requests')
+  pip_install('requests')
   import requests
   pass
 
@@ -11,7 +24,7 @@ except:
 try:
   from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 except:
-  slicer.util.pip_install('requests_toolbelt')
+  pip_install('requests_toolbelt')
   from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
   pass
 
@@ -19,6 +32,6 @@ except:
 try:
   import OpenSSL
 except:
-  slicer.util.pip_install('pyOpenSSL')
+  pip_install('pyOpenSSL')
   import OpenSSL
   pass
