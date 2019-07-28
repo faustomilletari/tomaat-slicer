@@ -1,6 +1,7 @@
 import socket
 import ssl
 import requests
+import sys
 from requests_toolbelt.adapters.fingerprint import FingerprintAdapter
 
 """
@@ -92,7 +93,10 @@ class SSLUtil:
     @staticmethod
     def requestFingerprintFromURL(url):
         # extract hostname / port
-        from urllib.parse import urlparse
+        if sys.version_info.major == 2:
+            from urlparse import urlparse
+        else:
+            from urllib.parse import urlparse
         url_info = urlparse(url)
 
         if url_info.scheme != "https":
@@ -138,8 +142,12 @@ class SSLUtil:
     @staticmethod
     def loadFingerprintsFromFile(filepath):
         import json
-        with open(filepath,"r",encoding="utf-8") as f:
-            local_fingerprints = json.load(f)
+        if sys.version_info.major == 2:
+            with open(filepath,"rb") as f:
+                local_fingerprints = json.load(f)
+        else:
+            with open(filepath,"r",encoding="utf-8") as f:
+                local_fingerprints = json.load(f)
         SSLUtil.fingerprintsLocal = local_fingerprints
 
     @staticmethod
